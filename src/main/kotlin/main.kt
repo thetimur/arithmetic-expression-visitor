@@ -69,14 +69,51 @@ class ExpandVisitor: Visitor<String> {
         return "(${plusNode.left.accept(this)} + ${plusNode.right.accept(this)})"
     }
 
+    private fun getExpandResult(multiplyNode: MultiplyNode) : Node {
+        if (multiplyNode.left is NumberNode && multiplyNode.right is NumberNode) {
+            return multiplyNode
+        } else if (multiplyNode.left is NumberNode && multiplyNode.right is PlusNode) {
+            return PlusNode(
+                    MultiplyNode(multiplyNode.left, multiplyNode.right.left),
+                    MultiplyNode(multiplyNode.left, multiplyNode.right.right)
+            )
+        } else if (multiplyNode.left is NumberNode && multiplyNode.right is MultiplyNode) {
+            return MultiplyNode(multiplyNode.left, multiplyNode.right)
+        } else if (multiplyNode.right is NumberNode) {
+            return  getExpandResult(MultiplyNode(multiplyNode.right, multiplyNode.left))
+        } else if (multiplyNode.left is PlusNode && multiplyNode.right is PlusNode) {
+            return PlusNode(
+                    PlusNode(
+                            MultiplyNode(multiplyNode.left.left, multiplyNode.right.left),
+                            MultiplyNode(multiplyNode.left.left, multiplyNode.right.right)
+                    ),
+                    PlusNode(
+                            MultiplyNode(multiplyNode.left.right, multiplyNode.right.left),
+                            MultiplyNode(multiplyNode.left.right, multiplyNode.right.right)
+                    )
+            )
+        } else if (multiplyNode.left is MultiplyNode && multiplyNode.right is PlusNode) {
+            return PlusNode(
+                    MultiplyNode(multiplyNode.left, multiplyNode.right.left),
+                    MultiplyNode(multiplyNode.left, multiplyNode.right.right)
+            )
+        } else if (multiplyNode.right is PlusNode) {
+            return  getExpandResult(MultiplyNode(multiplyNode.right, multiplyNode.left))
+        }
+        return getExpandResult(MultiplyNode(getExpandResult(multiplyNode.left as MultiplyNode), getExpandResult(multiplyNode.right as MultiplyNode)))
+    }
+
     override fun visitMultiplyNode(multiplyNode: MultiplyNode): String {
-        val result = PlusNode(multiplyNode.left, multiplyNode.left)
-        return visitPlusNode(result)
+        val result = getExpandResult(multiplyNode)
+        if (result is PlusNode) {
+            return visitPlusNode(result)
+        }
+        return "(${multiplyNode.left.accept(this)} * ${multiplyNode.right.accept(this)})"
     }
 }
 
 fun main() {
-    val root = PlusNode(NumberNode(20), MultiplyNode(NumberNode(2), NumberNode(10)))
+    val root = MultiplyNode(NumberNode(2), PlusNode(NumberNode(10), NumberNode(20)))
     println(root.accept(PrintVisitor()))
     println(root.accept(CalculateVisitor()))
     println(root.accept(ExpandVisitor()))
